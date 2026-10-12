@@ -43,32 +43,27 @@ const Register = () => {
     const password = formData.password;
     const confirmPassword = formData.confirmPassword;
 
-    // Edge Case 1: Missing mandatory fields
     if (!trimmedFullName || !trimmedEmail || !password || !confirmPassword || !trimmedPhone) {
       setError('All fields are mandatory');
       return;
     }
 
-    // Edge Case 2: Invalid Email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
       setError('Please enter a valid email address');
       return;
     }
 
-    // Edge Case 3: Phone number length/digits check
     if (trimmedPhone.length < 7) {
       setError('Please enter a valid phone number');
       return;
     }
 
-    // Edge Case 4: Minimum 6 characters password
     if (password.length < 6) {
       setError('Password must contain at least 6 characters');
       return;
     }
 
-    // Edge Case 5: Password confirmation match
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;

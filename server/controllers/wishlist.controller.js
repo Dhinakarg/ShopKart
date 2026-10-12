@@ -2,16 +2,10 @@ import mongoose from 'mongoose';
 import Customer from '../models/customer.model.js';
 import Product from '../models/product.model.js';
 
-/**
- * @desc    Add a product to current user's wishlist
- * @route   POST /wishlist/:productId
- * @access  Private (Authenticated)
- */
 export const addToWishlist = async (req, res) => {
   try {
     const { productId } = req.params;
 
-    // Validate productId format
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({
         success: false,
@@ -19,7 +13,6 @@ export const addToWishlist = async (req, res) => {
       });
     }
 
-    // Check if product exists
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({
@@ -28,7 +21,6 @@ export const addToWishlist = async (req, res) => {
       });
     }
 
-    // Fetch user instance
     const customer = await Customer.findById(req.user._id);
     if (!customer) {
       return res.status(401).json({
@@ -41,7 +33,6 @@ export const addToWishlist = async (req, res) => {
       customer.wishlist = [];
     }
 
-    // Check if product is already in wishlist (Duplicate prevention)
     const isAlreadyWishlisted = customer.wishlist.some(
       (id) => id && id.toString() === productId.toString()
     );
@@ -53,7 +44,6 @@ export const addToWishlist = async (req, res) => {
       });
     }
 
-    // Add Product ObjectId to wishlist array
     customer.wishlist.push(productId);
     await customer.save();
 
@@ -70,11 +60,6 @@ export const addToWishlist = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get current user's populated wishlist
- * @route   GET /wishlist
- * @access  Private (Authenticated)
- */
 export const getWishlist = async (req, res) => {
   try {
     const customer = await Customer.findById(req.user._id).populate({
@@ -90,7 +75,6 @@ export const getWishlist = async (req, res) => {
     }
 
     const wishlistItems = Array.isArray(customer.wishlist) ? customer.wishlist : [];
-    // Clean up any deleted product references that populated as null
     const validWishlistItems = wishlistItems.filter((item) => item !== null && item !== undefined);
 
     return res.status(200).json({
@@ -107,16 +91,10 @@ export const getWishlist = async (req, res) => {
   }
 };
 
-/**
- * @desc    Remove a product from current user's wishlist
- * @route   DELETE /wishlist/:productId
- * @access  Private (Authenticated)
- */
 export const removeFromWishlist = async (req, res) => {
   try {
     const { productId } = req.params;
 
-    // Validate productId format
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({
         success: false,
@@ -136,7 +114,6 @@ export const removeFromWishlist = async (req, res) => {
       customer.wishlist = [];
     }
 
-    // Check if product is in wishlist
     const exists = customer.wishlist.some(
       (id) => id && id.toString() === productId.toString()
     );
@@ -148,7 +125,6 @@ export const removeFromWishlist = async (req, res) => {
       });
     }
 
-    // Remove product reference
     customer.wishlist = customer.wishlist.filter(
       (id) => id && id.toString() !== productId.toString()
     );
@@ -167,11 +143,6 @@ export const removeFromWishlist = async (req, res) => {
   }
 };
 
-/**
- * @desc    Toggle product in wishlist (Bonus Task 23)
- * @route   PATCH /wishlist/:productId/toggle
- * @access  Private (Authenticated)
- */
 export const toggleWishlist = async (req, res) => {
   try {
     const { productId } = req.params;
@@ -209,11 +180,9 @@ export const toggleWishlist = async (req, res) => {
 
     let saved = false;
     if (existsIndex > -1) {
-      // Remove
       customer.wishlist.splice(existsIndex, 1);
       saved = false;
     } else {
-      // Add
       customer.wishlist.push(productId);
       saved = true;
     }

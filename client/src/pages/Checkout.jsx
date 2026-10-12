@@ -129,7 +129,6 @@ const Checkout = ({ user }) => {
     setSubmitting(true);
 
     try {
-      // 1. Call Backend to create ShopKart order & Razorpay order
       const data = await createPaymentOrderApi(formData);
       const { shopKartOrderId, razorpayOrderId, amount, currency, key } = data;
 
@@ -137,11 +136,9 @@ const Checkout = ({ user }) => {
         setPendingOrderId(shopKartOrderId);
       }
 
-      // 2. Load Razorpay Checkout Script and open Gateway Modal
       const scriptLoaded = await loadRazorpayScript();
 
       if (!scriptLoaded || !window.Razorpay) {
-        console.warn('Razorpay SDK not loaded, falling back to test order completion');
         await completeTestOrder(shopKartOrderId, razorpayOrderId);
         return;
       }
@@ -150,11 +147,9 @@ const Checkout = ({ user }) => {
 
       const activeKey = key ? key.trim() : (import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_Tm9TwY3GxTDMtI').trim();
 
-      // Strict 10-digit phone number for Razorpay prefill.contact
       const rawPhone = (formData.phone || user?.phone || '').replace(/\D/g, '');
       const validContact = rawPhone.length >= 10 ? rawPhone.slice(-10) : '9876543210';
 
-      // Strict email format validation for Razorpay prefill.email
       const rawEmail = (user?.email || '').trim();
       const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail) ? rawEmail : 'customer@example.com';
       const validName = (formData.fullName || user?.fullName || 'Customer').trim();
@@ -168,7 +163,6 @@ const Checkout = ({ user }) => {
         ...(isRealRzpOrder ? { order_id: razorpayOrderId } : {}),
         handler: async function (response) {
           try {
-            // 3. Send razorpay_payment_id, razorpay_order_id, razorpay_signature to backend verify-payment endpoint
             const verifyRes = await verifyPaymentApi({
               shopKartOrderId,
               razorpay_order_id: response.razorpay_order_id || razorpayOrderId,
@@ -199,7 +193,6 @@ const Checkout = ({ user }) => {
         },
         modal: {
           ondismiss: function () {
-            console.log('Razorpay modal dismissed by user');
             setSubmitting(false);
             setGeneralError('Payment cancelled by user.');
           }
@@ -209,12 +202,10 @@ const Checkout = ({ user }) => {
       const rzpWindow = new window.Razorpay(options);
 
       rzpWindow.on('payment.failed', function (resp) {
-        console.warn('Razorpay payment failed callback:', resp);
         setSubmitting(false);
         setGeneralError(`Payment Failed: ${resp.error?.description || resp.error?.reason || 'Transaction declined'}`);
       });
 
-      // 4. Open Razorpay Gateway Popup Modal
       rzpWindow.open();
     } catch (err) {
       console.error('Checkout error:', err);

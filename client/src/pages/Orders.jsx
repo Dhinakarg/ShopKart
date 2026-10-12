@@ -72,7 +72,6 @@ const Orders = ({ user }) => {
 
   if (!user) return null;
 
-  // 1. Loading State
   if (loading) {
     return (
       <div className="page-container">
@@ -84,7 +83,6 @@ const Orders = ({ user }) => {
     );
   }
 
-  // 2. Error State
   if (error && orders.length === 0) {
     return (
       <div className="page-container">

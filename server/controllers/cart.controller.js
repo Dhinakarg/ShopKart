@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 import Customer from '../models/customer.model.js';
 import Product from '../models/product.model.js';
 
-
 export const addToCart = async (req, res) => {
   try {
     const { productId } = req.params;
@@ -15,7 +14,6 @@ export const addToCart = async (req, res) => {
       });
     }
 
-    // Validate productId format
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({
         success: false,
@@ -23,7 +21,6 @@ export const addToCart = async (req, res) => {
       });
     }
 
-    // Check if product exists
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({
@@ -39,7 +36,6 @@ export const addToCart = async (req, res) => {
       });
     }
 
-    // Fetch user instance
     const customer = await Customer.findById(req.user._id);
     if (!customer) {
       return res.status(401).json({
@@ -52,7 +48,6 @@ export const addToCart = async (req, res) => {
       customer.cart = [];
     }
 
-    // Find existing cart item
     const existingIndex = customer.cart.findIndex(
       (item) => item.product && item.product.toString() === productId.toString()
     );
@@ -62,7 +57,6 @@ export const addToCart = async (req, res) => {
       targetQuantity = customer.cart[existingIndex].quantity + addQuantity;
     }
 
-    // Stock validation
     if (targetQuantity > product.stock) {
       return res.status(400).json({
         success: false,
@@ -81,7 +75,6 @@ export const addToCart = async (req, res) => {
 
     await customer.save();
 
-    // Re-fetch populated cart
     const updatedCustomer = await Customer.findById(req.user._id).populate({
       path: 'cart.product',
       select: 'name description price category image stock createdAt'
@@ -105,7 +98,6 @@ export const addToCart = async (req, res) => {
   }
 };
 
-
 export const getCart = async (req, res) => {
   try {
     const customer = await Customer.findById(req.user._id).populate({
@@ -121,7 +113,6 @@ export const getCart = async (req, res) => {
     }
 
     const cartItems = Array.isArray(customer.cart) ? customer.cart : [];
-    // Clean up any deleted product references that populated as null
     const validCartItems = cartItems.filter(
       (item) => item.product !== null && item.product !== undefined
     );
@@ -140,13 +131,11 @@ export const getCart = async (req, res) => {
   }
 };
 
-
 export const updateCartQuantity = async (req, res) => {
   try {
     const { productId } = req.params;
     const { quantity } = req.body;
 
-    // Validate quantity
     const newQuantity = Number(quantity);
     if (quantity === undefined || quantity === null || isNaN(newQuantity) || newQuantity < 1) {
       return res.status(400).json({
@@ -155,7 +144,6 @@ export const updateCartQuantity = async (req, res) => {
       });
     }
 
-    // Validate productId format
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({
         success: false,
@@ -163,7 +151,6 @@ export const updateCartQuantity = async (req, res) => {
       });
     }
 
-    // Check if product exists
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({
@@ -184,7 +171,6 @@ export const updateCartQuantity = async (req, res) => {
       customer.cart = [];
     }
 
-    // Check if item exists in user's cart
     const itemIndex = customer.cart.findIndex(
       (item) => item.product && item.product.toString() === productId.toString()
     );
@@ -196,7 +182,6 @@ export const updateCartQuantity = async (req, res) => {
       });
     }
 
-    // Validate stock limit
     if (newQuantity > product.stock) {
       return res.status(400).json({
         success: false,
@@ -207,7 +192,6 @@ export const updateCartQuantity = async (req, res) => {
     customer.cart[itemIndex].quantity = newQuantity;
     await customer.save();
 
-    // Re-fetch populated cart
     const updatedCustomer = await Customer.findById(req.user._id).populate({
       path: 'cart.product',
       select: 'name description price category image stock createdAt'
@@ -231,12 +215,10 @@ export const updateCartQuantity = async (req, res) => {
   }
 };
 
-
 export const removeFromCart = async (req, res) => {
   try {
     const { productId } = req.params;
 
-    // Validate productId format
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({
         success: false,
@@ -256,7 +238,6 @@ export const removeFromCart = async (req, res) => {
       customer.cart = [];
     }
 
-    // Check if product is in cart
     const exists = customer.cart.some(
       (item) => item.product && item.product.toString() === productId.toString()
     );
@@ -268,13 +249,11 @@ export const removeFromCart = async (req, res) => {
       });
     }
 
-    // Remove item from cart array
     customer.cart = customer.cart.filter(
       (item) => item.product && item.product.toString() !== productId.toString()
     );
     await customer.save();
 
-    // Re-fetch populated cart
     const updatedCustomer = await Customer.findById(req.user._id).populate({
       path: 'cart.product',
       select: 'name description price category image stock createdAt'

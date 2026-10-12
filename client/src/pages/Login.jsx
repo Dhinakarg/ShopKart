@@ -36,14 +36,11 @@ const Login = ({ setUser }) => {
     setLoading(true);
 
     try {
-      // 1. Submit login credentials (sets HttpOnly cookie)
       const response = await loginCustomer(formData);
 
       if (response.success) {
-        // 2. Fetch authenticated profile data
         const profileData = await getProfile();
         setUser(profileData);
-        // 3. Navigate directly to Product Catalog
         navigate('/products');
       }
     } catch (err) {

@@ -5,9 +5,6 @@ import Customer from '../models/customer.model.js';
 import Product from '../models/product.model.js';
 import { getRazorpayInstance, getRazorpayKeyId, getRazorpayKeySecret } from '../config/razorpay.js';
 
-/**
- * @desc    Validate shipping address input
- */
 const validateShippingAddress = (address) => {
   if (!address || typeof address !== 'object') {
     return 'Shipping address is required.';
@@ -30,16 +27,10 @@ const validateShippingAddress = (address) => {
   return null;
 };
 
-/**
- * @desc    Create ShopKart pending order and Razorpay order
- * @route   POST /orders/create-payment-order
- * @access  Private (Authenticated)
- */
 export const createPaymentOrder = async (req, res) => {
   try {
     const { shippingAddress } = req.body;
 
-    // 1. Validate shipping address
     const addressError = validateShippingAddress(shippingAddress);
     if (addressError) {
       return res.status(400).json({
@@ -48,7 +39,6 @@ export const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 2. Fetch authenticated user with cart
     const customer = await Customer.findById(req.user._id).populate({
       path: 'cart.product',
       select: 'name price stock image'
@@ -61,7 +51,6 @@ export const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // 3. Final stock verification & Server-side total calculation
     let totalAmount = 0;
     const orderItems = [];
 
@@ -73,7 +62,6 @@ export const createPaymentOrder = async (req, res) => {
         });
       }
 
-      // Re-fetch latest product data from database to ensure fresh stock and price
       const latestProduct = await Product.findById(item.product._id);
       if (!latestProduct) {
         return res.status(400).json({
@@ -92,7 +80,6 @@ export const createPaymentOrder = async (req, res) => {
       const itemTotal = latestProduct.price * item.quantity;
       totalAmount += itemTotal;
 
-      // Purchase-time snapshot
       orderItems.push({
         product: latestProduct._id,
         name: latestProduct.name,
@@ -102,7 +89,6 @@ export const createPaymentOrder = async (req, res) => {
       });
     }
 
-    // Clean up trimmed shipping address
     const cleanAddress = {
       fullName: shippingAddress.fullName.trim(),
       phone: shippingAddress.phone.trim(),
@@ -112,7 +98,6 @@ export const createPaymentOrder = async (req, res) => {
       pincode: shippingAddress.pincode.trim()
     };
 
-    // 4. Create pending ShopKart order
     const order = await Order.create({
       user: req.user._id,
       items: orderItems,
@@ -122,7 +107,6 @@ export const createPaymentOrder = async (req, res) => {
       status: 'PENDING_PAYMENT'
     });
 
-    // 5. Create Razorpay order (amount in paise)
     const amountInPaise = Math.round(totalAmount * 100);
     let razorpayOrderId = process.env.NODE_ENV === 'test' ? `order_${order._id}` : null;
 
@@ -139,8 +123,7 @@ export const createPaymentOrder = async (req, res) => {
             if (rzpOrder && rzpOrder.id) {
               razorpayOrderId = rzpOrder.id;
             }
-          } catch (firstErr) {
-            // Retry once after 300ms delay if temporary throttling occurred
+          } catch {
             await new Promise((r) => setTimeout(r, 300));
             const retryOrder = await rzp.orders.create({
               amount: amountInPaise,
@@ -154,8 +137,7 @@ export const createPaymentOrder = async (req, res) => {
         }
       }
     } catch (rzpErr) {
-      const errMsg = rzpErr?.error?.description || rzpErr?.message || 'Razorpay order creation check';
-      console.warn('Razorpay API notice:', errMsg);
+      console.warn('Razorpay order check:', rzpErr?.message || rzpErr);
     }
 
     order.razorpayOrderId = razorpayOrderId || `order_${order._id}`;
@@ -179,11 +161,6 @@ export const createPaymentOrder = async (req, res) => {
   }
 };
 
-/**
- * @desc    Verify Razorpay payment signature & confirm order
- * @route   POST /orders/verify-payment
- * @access  Private (Authenticated)
- */
 export const verifyPayment = async (req, res) => {
   try {
     const { shopKartOrderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
@@ -210,7 +187,6 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // Verify order ownership
     if (order.user.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -218,7 +194,6 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // Check if order was already paid
     if (order.paymentStatus === 'PAID') {
       return res.status(200).json({
         success: true,
@@ -227,12 +202,11 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // 1. Mandatory HMAC SHA256 Signature Verification
     const secret = getRazorpayKeySecret();
     const rzpOrderIdToVerify = order.razorpayOrderId || razorpay_order_id || `order_${order._id}`;
     const paymentIdToVerify = razorpay_payment_id || `pay_${order._id}`;
 
-    const bodyData = rzpOrderIdToVerify + '|' + paymentIdToVerify;
+    const bodyData = `${rzpOrderIdToVerify}|${paymentIdToVerify}`;
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(bodyData)
@@ -253,13 +227,11 @@ export const verifyPayment = async (req, res) => {
       });
     }
 
-    // 2. Mark order as PAID & PLACED
     order.paymentStatus = 'PAID';
     order.status = 'PLACED';
     order.razorpayPaymentId = paymentIdToVerify;
     await order.save();
 
-    // 3. Deduct stock for each product in catalog
     for (const item of order.items) {
       if (item.product) {
         await Product.findByIdAndUpdate(item.product, {
@@ -268,7 +240,6 @@ export const verifyPayment = async (req, res) => {
       }
     }
 
-    // 4. Clear User's cart in database
     const customer = await Customer.findById(req.user._id);
     if (customer) {
       customer.cart = [];
@@ -289,11 +260,6 @@ export const verifyPayment = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get current user's order history
- * @route   GET /orders
- * @access  Private (Authenticated)
- */
 export const getMyOrders = async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
@@ -312,11 +278,6 @@ export const getMyOrders = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get details of a single order by ID
- * @route   GET /orders/:id
- * @access  Private (Authenticated)
- */
 export const getOrderById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -337,7 +298,6 @@ export const getOrderById = async (req, res) => {
       });
     }
 
-    // Enforce ownership: user can only access their own orders
     if (order.user.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
@@ -358,11 +318,6 @@ export const getOrderById = async (req, res) => {
   }
 };
 
-/**
- * @desc    Update order status (Bonus Challenge)
- * @route   PATCH /orders/:id/status
- * @access  Private (Authenticated)
- */
 export const updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;

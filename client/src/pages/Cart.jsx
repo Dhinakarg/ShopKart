@@ -93,7 +93,6 @@ const Cart = ({ user }) => {
     }).format(val);
   };
 
-  // 1. Loading State
   if (cartLoading) {
     return (
       <div className="page-container">
@@ -107,7 +106,6 @@ const Cart = ({ user }) => {
     );
   }
 
-  // 2. Error State
   if (cartError && cartItems.length === 0) {
     return (
       <div className="page-container">
@@ -141,7 +139,6 @@ const Cart = ({ user }) => {
     );
   }
 
-  // 3. Empty State
   if (cartItems.length === 0) {
     return (
       <div className="page-container">

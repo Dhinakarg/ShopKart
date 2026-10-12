@@ -53,7 +53,6 @@ const Wishlist = ({ user, addToCart, onWishlistChange }) => {
 
   if (!user) return null;
 
-  // 1. Loading State
   if (loading) {
     return (
       <div className="page-container">
@@ -67,7 +66,6 @@ const Wishlist = ({ user, addToCart, onWishlistChange }) => {
     );
   }
 
-  // 2. Error State
   if (error) {
     return (
       <div className="page-container">
@@ -96,7 +94,6 @@ const Wishlist = ({ user, addToCart, onWishlistChange }) => {
     );
   }
 
-  // 3. Empty Wishlist State
   if (wishlistItems.length === 0) {
     return (
       <div className="page-container">

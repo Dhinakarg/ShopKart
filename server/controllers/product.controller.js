@@ -1,16 +1,10 @@
-import Product from '../models/product.model.js';
 import mongoose from 'mongoose';
+import Product from '../models/product.model.js';
 
-/**
- * @desc    Create a new product
- * @route   POST /products
- * @access  Public
- */
 export const createProduct = async (req, res) => {
   try {
     const { name, description, price, category, image, stock } = req.body;
 
-    // Validate mandatory fields
     if (!name || !description || price === undefined || !category || !image || stock === undefined) {
       return res.status(400).json({
         success: false,
@@ -21,7 +15,6 @@ export const createProduct = async (req, res) => {
     const numericPrice = Number(price);
     const numericStock = Number(stock);
 
-    // Validate numeric price
     if (isNaN(numericPrice) || numericPrice <= 0) {
       return res.status(400).json({
         success: false,
@@ -29,7 +22,6 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    // Validate numeric stock
     if (isNaN(numericStock) || numericStock < 0) {
       return res.status(400).json({
         success: false,
@@ -60,28 +52,19 @@ export const createProduct = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get all products with search, category filter, and price sorting
- * @route   GET /products
- * @access  Public
- */
 export const getProducts = async (req, res) => {
   try {
     const { search, category, sort } = req.query;
-
     const query = {};
 
-    // Search filter (case-insensitive name match)
-    if (search && search.trim() !== '') {
+    if (search && search.trim()) {
       query.name = { $regex: search.trim(), $options: 'i' };
     }
 
-    // Category filter
-    if (category && category.trim() !== '' && category.toLowerCase() !== 'all') {
+    if (category && category.trim() && category.toLowerCase() !== 'all') {
       query.category = { $regex: new RegExp(`^${category.trim()}$`, 'i') };
     }
 
-    // Build sort option
     let sortOptions = { createdAt: -1 };
     if (sort === 'price_asc') {
       sortOptions = { price: 1 };
@@ -105,16 +88,10 @@ export const getProducts = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get single product by ID
- * @route   GET /products/:id
- * @access  Public
- */
 export const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Validate ObjectId format
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
@@ -123,7 +100,6 @@ export const getProductById = async (req, res) => {
     }
 
     const product = await Product.findById(id);
-
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -144,11 +120,6 @@ export const getProductById = async (req, res) => {
   }
 };
 
-/**
- * @desc    Seed initial catalog products
- * @route   GET /products/seed
- * @access  Public
- */
 export const seedProducts = async (req, res) => {
   try {
     const sampleProducts = [
@@ -217,13 +188,12 @@ export const seedProducts = async (req, res) => {
       }
     ];
 
-    // Reset collection with simple predictable IDs
     await Product.deleteMany({});
     const created = await Product.insertMany(sampleProducts);
 
     return res.status(201).json({
       success: true,
-      message: 'Catalog seeded successfully with simple predictable IDs',
+      message: 'Catalog seeded successfully',
       count: created.length,
       products: created
     });
