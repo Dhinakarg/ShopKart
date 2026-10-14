@@ -1,18 +1,8 @@
 import axios from 'axios';
 
-const getBaseURL = () => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  if (import.meta.env.PROD) {
-    return '';
-  }
-  return 'http://localhost:8085';
-};
-
 const API = axios.create({
-  baseURL: getBaseURL(),
-  withCredentials: true,
+  baseURL: 'http://localhost:8085',
+  withCredentials: true, // MANDATORY: Sends & accepts HttpOnly authentication cookies
   headers: {
     'Content-Type': 'application/json'
   }

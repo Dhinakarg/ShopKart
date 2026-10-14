@@ -68,12 +68,11 @@ export const loginCustomer = async (req, res) => {
         }
 
         const token = generateToken(customer._id);
-        const isProduction = process.env.NODE_ENV === "production";
 
         res.cookie("token", token, {
             httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? "none" : "lax",
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
             maxAge: 24 * 60 * 60 * 1000 // 1 day
         });
 
@@ -105,12 +104,7 @@ export const getCustomerProfile = getMyProfile;
 
 export const logoutCustomer = async (req, res) => {
     try {
-        const isProduction = process.env.NODE_ENV === "production";
-        res.clearCookie("token", {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? "none" : "lax"
-        });
+        res.clearCookie("token", { httpOnly: true });
         res.status(200).json({
             success: true,
             message: "Logged out successfully"
